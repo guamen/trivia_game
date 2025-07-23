@@ -81,7 +81,7 @@
         transition: width 0.1s linear;
     }
     .results {
-        font-size: 20px;
+        font-size: 18px;
         margin-top: 20px;
         animation: fadeIn 1s ease;
     }
@@ -89,6 +89,11 @@
         margin-top: 15px;
         background: #03a9f4;
         color: white;
+    }
+    .ranking {
+        margin-top: 15px;
+        font-size: 14px;
+        text-align: left;
     }
     @keyframes bounce {
         0%,100% { transform: scale(1);}
@@ -105,15 +110,6 @@
         from { opacity:0; transform:translateY(-10px);}
         to { opacity:1; transform:translateY(0);}
     }
-    .slide-out {
-        opacity: 0;
-        transform: translateX(-50px);
-    }
-    .slide-in {
-        opacity: 1;
-        transform: translateX(0);
-    }
-    /* Confetti */
     .confetti {
         position: fixed;
         width: 8px;
@@ -124,9 +120,7 @@
         animation: fall 3s linear forwards;
     }
     @keyframes fall {
-        to {
-            transform: translateY(100vh) rotate(720deg);
-        }
+        to { transform: translateY(100vh) rotate(720deg);}
     }
 </style>
 </head>
@@ -134,10 +128,15 @@
 
 <div class="container">
     <h1>TriviaManía Pro</h1>
-    <div id="game">
+    <div id="game" style="display:none;">
         <div class="question" id="question"></div>
         <div class="options" id="options"></div>
         <div class="timer"><div class="timer-bar" id="timer-bar"></div></div>
+    </div>
+    <div id="user-form">
+        <p>Ingrese su nombre:</p>
+        <input type="text" id="username" style="padding:8px;border-radius:5px;border:none;">
+        <button class="restart-btn" onclick="saveUser()">Comenzar</button>
     </div>
     <div id="results" class="results" style="display:none;"></div>
 </div>
@@ -146,6 +145,7 @@
 <audio id="sound-wrong" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_4e36d3b2f4.mp3?filename=error-126627.mp3"></audio>
 
 <script>
+    // Preguntas base
     const questions = [
         {text:"¿Capital de Francia?", options:["Roma","París","Madrid","Lisboa"], correct:1},
         {text:"¿2+2?", options:["3","4","5","6"], correct:1},
@@ -159,10 +159,20 @@
         {text:"¿País en Sudamérica?", options:["España","Chile","Canadá","Alemania"], correct:1}
     ];
 
+    // Generamos 500 preguntas simples adicionales (ejemplo)
+    for(let i=1;i<=500;i++){
+        questions.push({
+            text:`¿Cuánto es ${i}+1?`,
+            options:[`${i}`,`${i+1}`,`${i+2}`,`${i-1}`],
+            correct:1
+        });
+    }
+
     let randomQuestions = [];
     let current = 0;
     let score = 0;
     let timerInterval;
+    let currentUser = "";
     const questionEl = document.getElementById("question");
     const optionsEl = document.getElementById("options");
     const timerBar = document.getElementById("timer-bar");
@@ -170,12 +180,23 @@
     const correctSound = document.getElementById("sound-correct");
     const wrongSound = document.getElementById("sound-wrong");
 
+    function saveUser(){
+        const nameInput = document.getElementById("username");
+        if(!nameInput.value.trim()){
+            alert("Ingrese un nombre válido");
+            return;
+        }
+        currentUser = nameInput.value.trim();
+        document.getElementById("user-form").style.display="none";
+        document.getElementById("game").style.display="block";
+        startGame();
+    }
+
     function startGame() {
         randomQuestions = [...questions].sort(() => 0.5 - Math.random()).slice(0,10);
         current = 0;
         score = 0;
         resultsEl.style.display = "none";
-        document.getElementById("game").style.display = "block";
         showQuestion();
     }
 
@@ -185,10 +206,7 @@
             return;
         }
         const q = randomQuestions[current];
-        questionEl.classList.remove("slide-in");
-        void questionEl.offsetWidth; // reinicia animación
         questionEl.textContent = `Pregunta ${current+1}: ${q.text}`;
-        questionEl.classList.add("slide-in");
         optionsEl.innerHTML = "";
         q.options.forEach((opt, i) => {
             const btn = document.createElement("button");
@@ -238,9 +256,27 @@
     function endGame() {
         document.getElementById("game").style.display = "none";
         resultsEl.style.display = "block";
-        resultsEl.innerHTML = `🎉 Obtuviste <strong>${score}/10</strong> respuestas correctas.
-            <br><button class="restart-btn" onclick="startGame()">Volver a jugar</button>`;
+        saveRanking();
+        showRanking();
+        resultsEl.innerHTML += `<br><button class="restart-btn" onclick="startGame()">Volver a jugar</button>`;
         launchConfetti();
+    }
+
+    function saveRanking(){
+        let ranking = JSON.parse(localStorage.getItem("triviaRanking")||"[]");
+        ranking.push({name:currentUser,score:score});
+        ranking.sort((a,b)=>b.score-a.score);
+        localStorage.setItem("triviaRanking",JSON.stringify(ranking.slice(0,5))); // top 5
+    }
+
+    function showRanking(){
+        let ranking = JSON.parse(localStorage.getItem("triviaRanking")||"[]");
+        let html = "<div class='ranking'><strong>🏆 Ranking:</strong><br>";
+        ranking.forEach((r,i)=>{
+            html += `${i+1}. ${r.name} - ${r.score} pts<br>`;
+        });
+        html += "</div>";
+        resultsEl.innerHTML = `🎉 Obtuviste <strong>${score}/10</strong> correctas.` + html;
     }
 
     function launchConfetti() {
@@ -254,8 +290,6 @@
             setTimeout(()=>div.remove(),4000);
         }
     }
-
-    startGame();
 </script>
 
 </body>
